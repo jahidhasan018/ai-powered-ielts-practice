@@ -1,0 +1,133 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['email', 'createdAt', 'updatedAt'])
+          && data.email is string && data.email.size() <= 200
+          && data.createdAt == request.time
+          && data.updatedAt == request.time
+          && (data.get('name', '') is string)
+          && (data.get('name', '').size() <= 100)
+          && (data.get('targetBand', 0) is number)
+          && (data.get('currentLevel', '') is string)
+          && (data.get('currentLevel', '').size() <= 50)
+          && (data.get('dailyStudyTime', 0) is number)
+          && (data.get('focusSkills', []) is list)
+          && (data.get('focusSkills', []).size() <= 10);
+      }
+      
+      function isValidUserUpdate(data) {
+        return data.email is string && data.email.size() <= 200
+          && data.createdAt == existing().createdAt
+          && data.updatedAt == request.time
+          && (data.get('name', '') is string)
+          && (data.get('name', '').size() <= 100)
+          && (data.get('targetBand', 0) is number)
+          && (data.get('currentLevel', '') is string)
+          && (data.get('currentLevel', '').size() <= 50)
+          && (data.get('dailyStudyTime', 0) is number)
+          && (data.get('focusSkills', []) is list)
+          && (data.get('focusSkills', []).size() <= 10);
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserUpdate(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'targetBand', 'currentLevel', 'dailyStudyTime', 'focusSkills', 'updatedAt'
+        ])
+      );
+      allow delete: if false;
+
+      match /roadmaps/{roadmapId} {
+        function isValidRoadmap(data) {
+          return data.keys().hasAll(['durationWeeks', 'startDate', 'endDate', 'createdAt', 'updatedAt'])
+            && data.durationWeeks is number
+            && data.startDate is string && data.startDate.size() <= 50
+            && data.endDate is string && data.endDate.size() <= 50
+            && data.createdAt == request.time
+            && data.updatedAt == request.time;
+        }
+
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(roadmapId) && isValidRoadmap(incoming());
+        allow update: if false; // Roadmaps are immutable after generation
+        allow delete: if isOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        function isValidTask(data) {
+          return data.keys().hasAll(['date', 'type', 'durationMinutes', 'completed', 'createdAt', 'updatedAt'])
+            && data.date is string && data.date.size() <= 20
+            && data.type is string && data.type.size() <= 50
+            && data.durationMinutes is number
+            && data.completed is bool
+            && (data.get('timeSpentMinutes', 0) is number)
+            && data.createdAt == request.time
+            && data.updatedAt == request.time;
+        }
+
+        function isValidTaskUpdate(data) {
+          return data.keys().hasAll(['date', 'type', 'durationMinutes', 'completed', 'createdAt', 'updatedAt'])
+            && data.date is string && data.date.size() <= 20
+            && data.type is string && data.type.size() <= 50
+            && data.durationMinutes is number
+            && data.completed is bool
+            && (data.get('timeSpentMinutes', 0) is number)
+            && (data.get('courseProgress', {}) is map)
+            && data.createdAt == existing().createdAt
+            && data.updatedAt == request.time;
+        }
+
+        allow get: if isOwner(userId);
+        // Allow list to get tasks by userId
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId) && isValidTask(incoming());
+        allow update: if isOwner(userId) && isValidId(taskId) && isValidTaskUpdate(incoming()) && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'completed', 'timeSpentMinutes', 'courseProgress', 'updatedAt'
+          ])
+        );
+        allow delete: if isOwner(userId);
+      }
+
+      match /progress/{progressId} {
+        function isValidProgress(data) {
+          return data.keys().hasAll(['totalTimeMinutes', 'streak', 'completedTasks', 'updatedAt'])
+            && data.totalTimeMinutes is number
+            && data.streak is number
+            && data.completedTasks is number
+            && (data.get('lastStudyDate', '') is string)
+            && (data.get('lastStudyDate', '').size() <= 20)
+            && data.updatedAt == request.time;
+        }
+        
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(progressId) && isValidProgress(incoming());
+        allow update: if isOwner(userId) && isValidId(progressId) && isValidProgress(incoming()) && (
+           incoming().diff(existing()).affectedKeys().hasOnly([
+            'totalTimeMinutes', 'streak', 'completedTasks', 'lastStudyDate', 'updatedAt'
+          ])
+        );
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

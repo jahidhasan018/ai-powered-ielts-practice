@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile and IELTS preferences.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "User's display name" },
+        "email": { "type": "string", "description": "User's email address" },
+        "targetBand": { "type": "number", "description": "Target IELTS band score" },
+        "currentLevel": { "type": "string", "description": "Beginner, Intermediate, Advanced" },
+        "dailyStudyTime": { "type": "number", "description": "Daily study time in minutes" },
+        "focusSkills": { "type": "array", "items": { "type": "string" }, "description": "Reading, Writing, Listening, Speaking" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt", "updatedAt"]
+    },
+    "Roadmap": {
+      "title": "Roadmap",
+      "description": "Stores the user's generated study roadmap details.",
+      "type": "object",
+      "properties": {
+        "durationWeeks": { "type": "number", "description": "Study duration in weeks" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["durationWeeks", "startDate", "endDate", "createdAt", "updatedAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Daily study task.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "YYYY-MM-DD format date string" },
+        "type": { "type": "string", "description": "Reading, Writing, Listening, Speaking" },
+        "durationMinutes": { "type": "number", "description": "Expected duration in minutes" },
+        "completed": { "type": "boolean", "description": "Whether task is completed" },
+        "timeSpentMinutes": { "type": "number", "description": "Actual time spent studying" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "type", "durationMinutes", "completed", "createdAt", "updatedAt"]
+    },
+    "Progress": {
+      "title": "Progress",
+      "description": "User's overall progress state.",
+      "type": "object",
+      "properties": {
+        "totalTimeMinutes": { "type": "number", "description": "Total study time in minutes" },
+        "streak": { "type": "number", "description": "Current daily streak" },
+        "completedTasks": { "type": "number", "description": "Total tasks completed" },
+        "lastStudyDate": { "type": "string", "description": "YYYY-MM-DD date of last study session" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["totalTimeMinutes", "streak", "completedTasks", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile document."
+    },
+    "/users/{userId}/roadmaps/{roadmapId}": {
+      "schema": { "$ref": "#/entities/Roadmap" },
+      "description": "User's specific roadmaps (usually just one active)."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "User's individual study tasks."
+    },
+    "/users/{userId}/progress/{progressId}": {
+      "schema": { "$ref": "#/entities/Progress" },
+      "description": "User's progress stats (singleton document 'stats')."
+    }
+  }
+}
